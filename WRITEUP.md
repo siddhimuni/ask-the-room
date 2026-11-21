@@ -67,12 +67,17 @@ I used Claude Code. I directed the work and checked each step:
 - **Me:** chose the idea and scope, ran the scaffold, deploy, and secret commands
   myself, tested the live app with four people on separate accounts, and decided
   what to keep or drop.
-- **Mistakes the agent made, and how they were caught:** the duplicate check first
-  called the browser's wrong API address, and its answers were all "no match,"
-  most likely because a token limit was too small for a reasoning model. I caught
-  both when testing.
-  The agent also wrote a README line saying multi-user checks had been done before
-  they were; I caught that and corrected it.
+- **Mistakes the agent made, and how they were caught:**
+  - The first duplicate check called the browser's wrong API address, so every
+    check failed with "fetch failed." I caught it when testing. The route now uses
+    a relative path on the app's own server.
+  - The Cerebras version answered "no match" every time. It is a reasoning model,
+    and a 10-token limit left no room for the answer. I raised the limit.
+  - The Claude version returned intermittent 502 errors. The logs showed the
+    reasoning used up the 50-token limit (`output_budget_exhausted`). I raised the
+    limit to 1000 and added logging of the provider's error text.
+  - The agent also wrote a README line saying multi-user checks had been done before
+    they were. I caught that and corrected it.
 
 ## What I verified myself
 
