@@ -80,9 +80,16 @@ export function registerDuplicatesRoute(app: Hono<AppContext>, resolveAuth: Reso
           messages: [{ role: 'user', content: prompt }],
         }),
       })
-      const payload = (await res.json().catch(() => ({}))) as ChatCompletionResponse
+      const raw = await res.text()
+      let payload: ChatCompletionResponse = {}
+      try {
+        payload = JSON.parse(raw) as ChatCompletionResponse
+      } catch {
+        // Not JSON: the raw text below is what the log needs.
+      }
       if (!res.ok || payload.success === false) {
-        console.error('[duplicates] AI integration failed with status', res.status)
+        // Log the provider's error text, not just the status, so the cause is visible.
+        console.error('[duplicates] AI integration failed', res.status, raw.slice(0, 400))
         return c.json({ error: 'The duplicate check failed. Try again.' }, 502)
       }
 
