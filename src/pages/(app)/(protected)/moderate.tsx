@@ -58,6 +58,15 @@ export default function ModeratePage() {
     }
   }
 
+  async function remove(recordId: string) {
+    if (!window.confirm('Delete this question for good? Its votes stay in the database.')) return
+    try {
+      await writes.removeConfirmed(recordId)
+    } catch {
+      error('Delete failed', 'Please try again.')
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8 text-foreground">
       <Section title="Session topic">
@@ -115,6 +124,9 @@ export default function ModeratePage() {
           <Item key={q.recordId} body={q.data.body}>
             <Button size="sm" variant="outline" onClick={() => update(q.recordId, { status: 'approved' })}>
               Restore
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => remove(q.recordId)}>
+              Delete
             </Button>
           </Item>
         ))}
