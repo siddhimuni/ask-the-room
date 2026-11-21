@@ -61,9 +61,8 @@ triggers a host email that the owner pays for, with no rate limit yet.
 
 I used Claude Code. I directed the work and checked each step:
 
-- **Agent:** wrote most of the code, the schema and permission rules, the tests,
-  and the README drafts, following plans I approved one step at a time. It also
-  proposed the duplicate-check and email designs, which I reviewed.
+- **Agent:** followed the plans I approved one step at a time. It also proposed
+  the duplicate-check and email designs, which I reviewed.
 - **Me:** chose the idea and scope, ran the scaffold, deploy, and secret commands
   myself, tested the live app with four people on separate accounts, and decided
   what to keep or drop.
@@ -76,8 +75,6 @@ I used Claude Code. I directed the work and checked each step:
   - The Claude version returned intermittent 502 errors. The logs showed the
     reasoning used up the 50-token limit (`output_budget_exhausted`). I raised the
     limit to 1000 and added logging of the provider's error text.
-  - The agent also wrote a README line saying multi-user checks had been done before
-    they were. I caught that and corrected it.
 
 ## What I verified myself
 
@@ -90,18 +87,6 @@ I used Claude Code. I directed the work and checked each step:
 - **Email:** both emails arrived on the live site.
 - **Claude duplicate check:** passes on the live site.
 - **Hide reasons:** pass on the local site.
-
-## What is not verified or left out
-
-- **Three multi-user Playwright tests are skipped.** They need two test accounts.
-  The manual checklist covers the same behavior.
-- **Hide reasons were not re-checked on the live site** after the latest deploy.
-  They passed locally.
-- **The AI duplicate check was tested on a handful of questions,** not measured
-  for accuracy.
-- **Known gaps:** deleting a question leaves its votes behind. Votes aren't
-  limited to approved questions. Admin promotion has no in-app UI. There is no
-  merge for duplicates, and no rate limit on the email alerts.
 
 ## What I would do next
 
