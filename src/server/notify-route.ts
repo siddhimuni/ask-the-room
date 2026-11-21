@@ -20,7 +20,19 @@ import type { AppContext, Env } from '../../worker.js'
 type ResolveAuth = (req: Request, env: Env) => Promise<VerifyResult | null>
 
 const MAX_QUESTION_LENGTH = 280
+const MAX_SUBJECT_SNIPPET = 60
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * A one-line preview of the question for the subject. Including the text makes
+ * each email's subject unique, so mail clients don't group them into one thread.
+ */
+function subjectSnippet(question: string): string {
+  const oneLine = question.replace(/\s+/g, ' ').trim()
+  return oneLine.length <= MAX_SUBJECT_SNIPPET
+    ? oneLine
+    : oneLine.slice(0, MAX_SUBJECT_SNIPPET - 1).trimEnd() + '…'
+}
 
 /** Sends one email through the platform. Returns false if the send failed. */
 async function sendEmail(
@@ -63,7 +75,7 @@ export function registerNotifyRoutes(app: Hono<AppContext>, resolveAuth: Resolve
 
     const sent = await sendEmail(c.env, {
       to,
-      subject: `Your question is live at ${c.env.APP_NAME}`,
+      subject: `Your question is live: ${subjectSnippet(question)}`,
       text: `Your question was approved and is now on the board:\n\n"${question}"\n\nThanks for taking part.`,
     })
     if (!sent) return c.json({ error: 'The email could not be sent' }, 502)
@@ -86,7 +98,7 @@ export function registerNotifyRoutes(app: Hono<AppContext>, resolveAuth: Resolve
     const moderateUrl = new URL('/moderate', c.req.url).toString()
     const sent = await sendEmail(c.env, {
       to: host,
-      subject: `New question at ${c.env.APP_NAME}`,
+      subject: `New question: ${subjectSnippet(question)}`,
       text: `A new question is waiting for review:\n\n"${question}"\n\nReview it here: ${moderateUrl}`,
     })
     if (!sent) return c.json({ error: 'The email could not be sent' }, 502)
