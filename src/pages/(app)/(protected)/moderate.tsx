@@ -1,6 +1,6 @@
 /**
  * Moderator page: approve, hide, pin, and mark questions answered.
- * Only admins can change status, pinned, and answered (see questions-schema.ts).
+ * Only admins can change status, pinned, answered, and hideReason (see questions-schema.ts).
  */
 
 import { useState, type ReactNode } from 'react'
@@ -13,6 +13,10 @@ import {
   type SettingData,
   type VoteData,
 } from '../../../lib/board'
+
+/** Why a question was hidden. Stored in `hideReason` so the Hidden list can show it. */
+const HIDE_REASONS = ['duplicate', 'abusive', 'off-topic', 'other'] as const
+type HideReason = (typeof HIDE_REASONS)[number]
 
 export default function ModeratePage() {
   const { user } = useAuthProfileReady({ requireUser: true })
@@ -27,6 +31,8 @@ export default function ModeratePage() {
   const [topicDraft, setTopicDraft] = useState<string | null>(null)
   // Results of "Check duplicate", keyed by pending question ID.
   const [checks, setChecks] = useState<Record<string, 'checking' | { match: string | null }>>({})
+  // The reason the host has picked for each question before hiding it.
+  const [reasons, setReasons] = useState<Record<string, HideReason>>({})
   const currentTopic = topicRows.records[0]?.data.value ?? ''
 
   if (user?.role !== 'admin') {
@@ -96,6 +102,11 @@ export default function ModeratePage() {
     }
   }
 
+  // Hides a question and records the reason the host picked.
+  function hide(recordId: string) {
+    return update(recordId, { status: 'hidden', hideReason: reasons[recordId] ?? 'other' })
+  }
+
   // Approves a question, then emails its author. The approval stands even if
   // the email fails, and the admin is told so.
   async function approve(q: { recordId: string; createdBy: string; data: QuestionData }) {
@@ -154,7 +165,11 @@ export default function ModeratePage() {
             <Button size="sm" onClick={() => approve(q)}>
               Approve
             </Button>
-            <Button size="sm" variant="outline" onClick={() => update(q.recordId, { status: 'hidden' })}>
+            <ReasonSelect
+              value={reasons[q.recordId] ?? 'other'}
+              onChange={(r) => setReasons((prev) => ({ ...prev, [q.recordId]: r }))}
+            />
+            <Button size="sm" variant="outline" onClick={() => hide(q.recordId)}>
               Hide
             </Button>
           </Item>
@@ -178,7 +193,11 @@ export default function ModeratePage() {
             >
               {q.data.answered === 1 ? 'Unmark answered' : 'Mark answered'}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => update(q.recordId, { status: 'hidden' })}>
+            <ReasonSelect
+              value={reasons[q.recordId] ?? 'other'}
+              onChange={(r) => setReasons((prev) => ({ ...prev, [q.recordId]: r }))}
+            />
+            <Button size="sm" variant="outline" onClick={() => hide(q.recordId)}>
               Hide
             </Button>
           </Item>
@@ -187,8 +206,12 @@ export default function ModeratePage() {
 
       <Section title={`Hidden (${hidden.length})`}>
         {hidden.map((q) => (
-          <Item key={q.recordId} body={q.data.body}>
-            <Button size="sm" variant="outline" onClick={() => update(q.recordId, { status: 'approved' })}>
+          <Item key={q.recordId} body={q.data.body} meta={`Reason: ${q.data.hideReason || 'not given'}`}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => update(q.recordId, { status: 'approved', hideReason: '' })}
+            >
               Restore
             </Button>
             <Button size="sm" variant="ghost" onClick={() => remove(q.recordId)}>
@@ -198,6 +221,23 @@ export default function ModeratePage() {
         ))}
       </Section>
     </div>
+  )
+}
+
+function ReasonSelect({ value, onChange }: { value: HideReason; onChange: (r: HideReason) => void }) {
+  return (
+    <select
+      aria-label="Reason for hiding"
+      value={value}
+      onChange={(e) => onChange(e.target.value as HideReason)}
+      className="rounded-md border border-border bg-background px-2 text-sm"
+    >
+      {HIDE_REASONS.map((r) => (
+        <option key={r} value={r}>
+          {r}
+        </option>
+      ))}
+    </select>
   )
 }
 

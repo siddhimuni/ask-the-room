@@ -1,19 +1,19 @@
 /**
- * POST /api/duplicates: ask Claude whether a pending question repeats an
+ * POST /api/duplicates: ask a Claude model whether a pending question repeats an
  * approved one. Admin only.
  *
- * Billing: the admin's own JWT pays for the call (caller-pays), so no owner
- * secret is needed. Each check is one small call to GPT-OSS 120B on Cerebras
- * (an open model served through the DeepSpace proxy), made only when the
- * admin clicks "Check duplicate".
+ * The model call goes through the platform's integrations catalog
+ * (`anthropic/chat-completion`), the same way the email route calls `email/send`.
+ * Billing is developer mode by default, so the app owner's token (APP_OWNER_JWT)
+ * pays. The admin is the owner, so the admin pays in practice. Each call costs a
+ * fraction of a cent (a test call measured $0.0000044).
  *
  * Input:  { question: string, approved: { id: string, body: string }[] }
  * Output: { match: string | null }  the id of the approved question, or null
  */
 
 import type { Hono } from 'hono'
-import { generateText } from 'ai'
-import { createDeepSpaceAI, resolveAppRole } from 'deepspace/worker'
+import { apiWorkerFetch, resolveAppRole, splitIntegrationEndpoint } from 'deepspace/worker'
 import type { VerifyResult } from 'deepspace/worker'
 import type { AppContext, Env } from '../../worker.js'
 
@@ -21,6 +21,13 @@ type ResolveAuth = (req: Request, env: Env) => Promise<VerifyResult | null>
 
 const MAX_QUESTION_LENGTH = 280
 const MAX_CANDIDATES = 200
+const MODEL = 'claude-haiku-5-5'
+
+/** The response shape of anthropic/chat-completion (checked with a test call). */
+interface ChatCompletionResponse {
+  success?: boolean
+  data?: { content?: Array<{ type: string; text?: string }> }
+}
 
 export function registerDuplicatesRoute(app: Hono<AppContext>, resolveAuth: ResolveAuth): void {
   app.post('/api/duplicates', async (c) => {
@@ -29,11 +36,6 @@ export function registerDuplicatesRoute(app: Hono<AppContext>, resolveAuth: Reso
     if ((await resolveAppRole(c.env, auth.userId)) !== 'admin') {
       return c.json({ error: 'Only moderators can check duplicates' }, 403)
     }
-
-    // The raw JWT is needed so the caller's account pays for the AI call.
-    const authHeader = c.req.header('Authorization') ?? ''
-    const callerJwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-    if (!callerJwt) return c.json({ error: 'Unauthorized' }, 401)
 
     const input = await c.req.json().catch(() => null)
     const question = typeof input?.question === 'string' ? input.question.trim() : ''
@@ -62,11 +64,32 @@ export function registerDuplicatesRoute(app: Hono<AppContext>, resolveAuth: Reso
       'Otherwise reply with only the word NONE.',
     ].join('\n\n')
 
+    const target = splitIntegrationEndpoint('anthropic/chat-completion')
+    if (!target) return c.json({ error: 'AI integration path is invalid' }, 500)
+
     try {
-      const model = createDeepSpaceAI(c.env, 'cerebras', { authToken: callerJwt })('gpt-oss-120b')
-      // A reasoning model spends output tokens thinking first, so the limit must
-      // leave room for that. A tiny limit can cut the reply off before the number.
-      const { text } = await generateText({ model, prompt, maxOutputTokens: 1000 })
+      const res = await apiWorkerFetch(c.env, target.path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${c.env.APP_OWNER_JWT}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 50,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+      const payload = (await res.json().catch(() => ({}))) as ChatCompletionResponse
+      if (!res.ok || payload.success === false) {
+        console.error('[duplicates] AI integration failed with status', res.status)
+        return c.json({ error: 'The duplicate check failed. Try again.' }, 502)
+      }
+
+      const text = (payload.data?.content ?? [])
+        .filter((block) => block.type === 'text')
+        .map((block) => block.text ?? '')
+        .join('')
       // Only a valid list number counts. Anything else (including NONE) means no match.
       const n = Number.parseInt(text.trim(), 10)
       const picked = Number.isInteger(n) && n >= 1 && n <= candidates.length ? candidates[n - 1] : null

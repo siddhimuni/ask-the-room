@@ -12,6 +12,9 @@ export const questionsSchema: CollectionSchema = {
     },
     { name: 'answered', storage: 'number', interpretation: 'plain', default: 0 },
     { name: 'pinned', storage: 'number', interpretation: 'plain', default: 0 },
+    // Why the host hid the question: duplicate, abusive, off-topic, or other.
+    // Only admins can write it (members' writableFields is just `body`).
+    { name: 'hideReason', storage: 'text', interpretation: 'plain', maxLength: 20 },
   ],
   visibilityField: { field: 'status', value: 'approved' },
   permissions: {

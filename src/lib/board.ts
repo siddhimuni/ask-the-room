@@ -12,6 +12,8 @@ export interface QuestionData {
   answered: number
   /** 0 or 1 */
   pinned: number
+  /** Why the host hid it: duplicate, abusive, off-topic, other. Empty when not hidden. */
+  hideReason?: string
 }
 
 export interface VoteData {
