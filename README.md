@@ -46,9 +46,25 @@ npm run type-check   # TypeScript checks
 npx vitest run       # unit tests for the board logic
 ```
 
-Multi-user behavior (real-time updates, visitor and member permissions) is
-checked by hand with two browser windows: one signed in, and one in a private
-window that isn't signed in. Record the results here before submitting.
+## Live test results
+
+Deployed at https://ask-the-room.app.space. Checked by hand with three windows:
+the admin signed in, a member signed in on a second account, and a private
+window that isn't signed in.
+
+| Check | Result |
+|---|---|
+| Visitor view shows the topic and approved questions, with no ask form | Pass |
+| Member posts a question; it appears under "Waiting for review" only | Pass |
+| Admin approves a question; it appears on the board in every open window, without a refresh | Pass |
+| Votes and unvotes update every open window | Pass |
+| Admin pins and marks answered; both labels update in every window | Pass |
+| Member opening `/moderate` sees "Only moderators can open this page." | Pass |
+| Member deletes their own pending question | Pass |
+| Admin hides and then deletes an answered question; it disappears from the visitor and member pages | Pass |
+| Presence shows "2 online" with two signed-in accounts | Pass |
+| Cancelling the delete confirmation leaves the question in place | Pass |
+| Questions and votes are still there after closing all windows and signing in again | Pass |
 
 ## Tradeoffs and known gaps
 
