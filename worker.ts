@@ -27,6 +27,7 @@ import { runJob } from './src/jobs.js'
 import { schemas } from './src/schemas.js'
 import { registerActionRoutes } from './src/server/action-routes.js'
 import { registerDuplicatesRoute } from './src/server/duplicates-route.js'
+import { registerNotifyRoutes } from './src/server/notify-route.js'
 import {
   registerAuthAndIntegrationRoutes,
   registerPlatformProxyRoutes,
@@ -106,6 +107,8 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   /** Comma-separated exact Expo/native callback URIs (for example, myapp://auth/callback). */
   NATIVE_AUTH_REDIRECT_URIS?: string
   APP_NAME: string
+  /** Host's address for new-question emails. Set as a secret, never committed. */
+  ADMIN_NOTIFY_EMAIL?: string
   /** Immutable record-scope and platform identity. */
   DEEPSPACE_APP_ID: string
   OWNER_USER_ID: string
@@ -139,6 +142,7 @@ registerAuthAndIntegrationRoutes(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
 registerDuplicatesRoute(app, resolveAuth)
+registerNotifyRoutes(app, resolveAuth)
 // Every scaffold exposes selected tools through HTTP, MCP and browser tools.
 // Only copilot owns the collections needed for the in-app chat UI.
 registerAgent(app, {

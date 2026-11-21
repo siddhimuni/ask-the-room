@@ -4,7 +4,7 @@
  */
 
 import { useState, type ReactNode } from 'react'
-import { getAuthToken, useAuthProfileReady, useMutations, useQuery } from 'deepspace'
+import { getAuthToken, useAuthProfileReady, useMutations, useQuery, useUserLookup } from 'deepspace'
 import { Button, Input, useToast } from '@/components/ui'
 import {
   sortBoard,
@@ -22,6 +22,8 @@ export default function ModeratePage() {
   const writes = useMutations<Partial<QuestionData>>('questions')
   const topicRows = useQuery<SettingData>('settings', { where: { key: 'topic' } })
   const settingWrites = useMutations<SettingData>('settings')
+  // Admins can read each user's email, so this maps an author ID to their email.
+  const lookup = useUserLookup()
   const [topicDraft, setTopicDraft] = useState<string | null>(null)
   // Results of "Check duplicate", keyed by pending question ID.
   const [checks, setChecks] = useState<Record<string, 'checking' | { match: string | null }>>({})
@@ -84,11 +86,33 @@ export default function ModeratePage() {
     }
   }
 
-  async function update(recordId: string, patch: Partial<QuestionData>) {
+  async function update(recordId: string, patch: Partial<QuestionData>): Promise<boolean> {
     try {
       await writes.putConfirmed(recordId, patch)
+      return true
     } catch {
       error('Update failed', 'Please try again.')
+      return false
+    }
+  }
+
+  // Approves a question, then emails its author. The approval stands even if
+  // the email fails, and the admin is told so.
+  async function approve(q: { recordId: string; createdBy: string; data: QuestionData }) {
+    const saved = await update(q.recordId, { status: 'approved' })
+    if (!saved) return
+    const to = lookup.userMap.get(q.createdBy)?.email
+    if (!to) return
+    try {
+      const token = await getAuthToken()
+      const res = await fetch('/api/notify/approved', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ to, question: q.data.body }),
+      })
+      if (!res.ok) error('Approved, but the email failed', 'The question is on the board.')
+    } catch {
+      error('Approved, but the email failed', 'The question is on the board.')
     }
   }
 
@@ -127,7 +151,7 @@ export default function ModeratePage() {
             >
               Check duplicate
             </Button>
-            <Button size="sm" onClick={() => update(q.recordId, { status: 'approved' })}>
+            <Button size="sm" onClick={() => approve(q)}>
               Approve
             </Button>
             <Button size="sm" variant="outline" onClick={() => update(q.recordId, { status: 'hidden' })}>

@@ -4,7 +4,7 @@
  */
 
 import { useState, type FormEvent } from 'react'
-import { AuthOverlay, useAuthProfileReady, useMutations, usePresence, useQuery } from 'deepspace'
+import { AuthOverlay, getAuthToken, useAuthProfileReady, useMutations, usePresence, useQuery } from 'deepspace'
 import { Button, Textarea, useToast } from '@/components/ui'
 import { APP_NAME } from '../../constants'
 import {
@@ -52,8 +52,23 @@ export default function BoardPage() {
     try {
       await questionWrites.createConfirmed({ body })
       setDraft('')
+      notifyHost(body)
     } catch {
       error('Question not posted', 'Check the length and try again.')
+    }
+  }
+
+  // Emails the host that a question arrived. Best-effort: the question is already posted.
+  async function notifyHost(question: string) {
+    try {
+      const token = await getAuthToken()
+      await fetch('/api/notify/new-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ question }),
+      })
+    } catch {
+      // Ignored on purpose: a failed alert shouldn't look like a failed question.
     }
   }
 
