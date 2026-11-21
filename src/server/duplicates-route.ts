@@ -76,7 +76,10 @@ export function registerDuplicatesRoute(app: Hono<AppContext>, resolveAuth: Reso
         },
         body: JSON.stringify({
           model: MODEL,
-          max_tokens: 50,
+          // Claude reasons before it answers, and that reasoning counts against
+          // this limit. At 50 tokens the reasoning used it all (error
+          // output_budget_exhausted), so leave plenty of room for the answer.
+          max_tokens: 1000,
           messages: [{ role: 'user', content: prompt }],
         }),
       })
