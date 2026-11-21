@@ -11,6 +11,7 @@ SDK.
 - **Members** (signed in) can ask a question (up to 280 characters), upvote questions (one vote each), and delete their own questions.
 - **Admins** (the host) can approve, hide, restore, or delete questions, pin one, mark it answered, and set the session topic.
 - **Duplicate check** (admins only): on a pending question, an AI model compares it with the approved questions and suggests a match. The host decides whether to hide it.
+- **Email notifications:** when the host approves a question, its author gets an email. When a new question is posted, the host gets an email with a link to the moderator page.
 
 ## How the DeepSpace features are used
 
@@ -24,6 +25,7 @@ SDK.
 | Sign-in | `(protected)` route folder and `useAuthProfileReady` | The moderator page requires sign-in and an admin role |
 | Presence | `usePresence` in `home.tsx` | Shows how many people are online |
 | AI model call | `src/server/duplicates-route.ts`, `worker.ts` | A worker route calls GPT-OSS 120B (Cerebras) through `createDeepSpaceAI`. The admin's own account pays for each call, so no API key is stored |
+| Email integration | `src/server/notify-route.ts` | Calls the platform's catalog integration `email/send` (about $0.013 per email). The app owner's token pays. The host's address is the `ADMIN_NOTIFY_EMAIL` secret |
 
 ## Project layout
 
@@ -33,6 +35,7 @@ SDK.
 - `src/pages/(app)/home.tsx`: the board
 - `src/pages/(app)/(protected)/moderate.tsx`: the moderator page, at `/moderate`
 - `src/server/duplicates-route.ts`: the admin-only duplicate check route, `POST /api/duplicates`
+- `src/server/notify-route.ts`: the email routes, `POST /api/notify/approved` and `POST /api/notify/new-question`
 
 ## Run it locally
 
@@ -64,6 +67,7 @@ members. The checklist covered every feature below, and all items passed.
 | Member restrictions | Members can't moderate, can't see another member's pending question, and can't delete approved questions | Pass |
 | Duplicate check | Admin only; flags a repeat of an approved question; reports "No duplicate found" for an unrelated one; button disabled while a check runs; cost shows in the usage report | Pass |
 | Persistence and presence | Questions and votes survive closing all windows and signing in again; "2 online" with two accounts; count drops on sign-out | Pass |
+| Email notifications | Author gets the approval email; host gets the new-question email (both received on the live site) | Pass |
 
 ## Tradeoffs and known gaps
 
@@ -92,3 +96,8 @@ members. The checklist covered every feature below, and all items passed.
   itself.
 - **No merge.** When a duplicate is hidden, its votes don't move to the
   original question.
+- **Any signed-in member can trigger the host email.** Each new question costs
+  the owner about $0.013, and there's no rate limit yet. A daily digest or a
+  per-user limit would fix this.
+- **Restoring a hidden question doesn't email its author.** Only approval
+  sends the author an email, so the author doesn't get repeat emails.
