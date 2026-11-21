@@ -4,7 +4,7 @@
  */
 
 import { useState, type ReactNode } from 'react'
-import { useAuthProfileReady, useMutations, useQuery } from 'deepspace'
+import { getAuthToken, useAuthProfileReady, useMutations, useQuery } from 'deepspace'
 import { Button, Input, useToast } from '@/components/ui'
 import {
   sortBoard,
@@ -23,6 +23,8 @@ export default function ModeratePage() {
   const topicRows = useQuery<SettingData>('settings', { where: { key: 'topic' } })
   const settingWrites = useMutations<SettingData>('settings')
   const [topicDraft, setTopicDraft] = useState<string | null>(null)
+  // Results of "Check duplicate", keyed by pending question ID.
+  const [checks, setChecks] = useState<Record<string, 'checking' | { match: string | null }>>({})
   const currentTopic = topicRows.records[0]?.data.value ?? ''
 
   if (user?.role !== 'admin') {
@@ -36,6 +38,38 @@ export default function ModeratePage() {
     tallies,
   )
   const hidden = questions.records.filter((q) => q.data.status === 'hidden')
+
+  // Asks the server whether a pending question repeats an approved one.
+  // Runs only when the admin clicks, so credits are spent on purpose.
+  async function checkDuplicate(q: { recordId: string; data: QuestionData }) {
+    setChecks((c) => ({ ...c, [q.recordId]: 'checking' }))
+    try {
+      const token = await getAuthToken()
+      // Relative path: the app's own worker serves this route, on the same origin as the page.
+      const res = await fetch('/api/duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          question: q.data.body,
+          approved: approved.map((a) => ({ id: a.recordId, body: a.data.body })),
+        }),
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(`HTTP ${res.status}: ${body.error ?? 'no message from server'}`)
+      }
+      const { match } = (await res.json()) as { match: string | null }
+      const hit = approved.find((a) => a.recordId === match)
+      setChecks((c) => ({ ...c, [q.recordId]: { match: hit?.data.body ?? null } }))
+    } catch (err) {
+      setChecks((c) => {
+        const next = { ...c }
+        delete next[q.recordId]
+        return next
+      })
+      error('Duplicate check failed', err instanceof Error ? err.message : 'Please try again.')
+    }
+  }
 
   async function saveTopic() {
     const value = (topicDraft ?? currentTopic).trim()
@@ -84,7 +118,15 @@ export default function ModeratePage() {
 
       <Section title={`Pending (${pending.length})`}>
         {pending.map((q) => (
-          <Item key={q.recordId} body={q.data.body}>
+          <Item key={q.recordId} body={q.data.body} meta={duplicateNote(checks[q.recordId])}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={checks[q.recordId] === 'checking'}
+              onClick={() => checkDuplicate(q)}
+            >
+              Check duplicate
+            </Button>
             <Button size="sm" onClick={() => update(q.recordId, { status: 'approved' })}>
               Approve
             </Button>
@@ -133,6 +175,13 @@ export default function ModeratePage() {
       </Section>
     </div>
   )
+}
+
+function duplicateNote(check: 'checking' | { match: string | null } | undefined): string | undefined {
+  if (check === undefined) return undefined
+  if (check === 'checking') return 'Checking for duplicates…'
+  if (check.match === null) return 'No duplicate found (AI suggestion)'
+  return `Possible duplicate of: "${check.match}" (AI suggestion, you decide)`
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
