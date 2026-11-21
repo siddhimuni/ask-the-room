@@ -5,8 +5,7 @@
  * The model call goes through the platform's integrations catalog
  * (`anthropic/chat-completion`), the same way the email route calls `email/send`.
  * Billing is developer mode by default, so the app owner's token (APP_OWNER_JWT)
- * pays. The admin is the owner, so the admin pays in practice. Each call costs a
- * fraction of a cent (a test call measured $0.0000044).
+ * pays. The admin is the owner, so the admin pays in practice.
  *
  * Input:  { question: string, approved: { id: string, body: string }[] }
  * Output: { match: string | null }  the id of the approved question, or null

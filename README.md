@@ -32,8 +32,8 @@ These are services from the DeepSpace integrations catalog. Each call is billed 
 
 | Integration | Where | What it does |
 |---|---|---|
-| `email/send` | `src/server/notify-route.ts` | Emails the author when a question is approved, and emails the host when a question arrives. The host's address is the `ADMIN_NOTIFY_EMAIL` secret. About $0.013 per email |
-| `anthropic/chat-completion` | `src/server/duplicates-route.ts` | Claude Haiku checks whether a pending question repeats an approved one. A fraction of a cent per check |
+| `email/send` | `src/server/notify-route.ts` | Emails the author when a question is approved, and emails the host when a question arrives. The host's address is the `ADMIN_NOTIFY_EMAIL` secret |
+| `anthropic/chat-completion` | `src/server/duplicates-route.ts` | Claude Haiku checks whether a pending question repeats an approved one |
 
 That's two catalog integrations. We considered Slack for host alerts, but dropped it in favor of email. No other catalog service fit a Q&A board, so we didn't add one just to reach three.
 
@@ -81,8 +81,8 @@ members. The checklist covered every feature below, and all items passed.
 | Member restrictions | Members can't moderate, can't see another member's pending question, and can't delete approved questions | Pass |
 | Persistence and presence | Questions and votes survive closing all windows and signing in again; "2 online" with two accounts; count drops on sign-out | Pass |
 | Email notifications | Author gets the approval email; host gets the new-question email (both received on the live site) | Pass |
-| Duplicate check (Claude Haiku) | Flags a repeat of an approved question; "No duplicate found" for an unrelated one | Pass on the local site; live re-test pending deploy |
-| Hide reasons | Hidden list shows the reason chosen when hiding | Pass on the local site; live re-test pending deploy |
+| Duplicate check (Claude Haiku) | Flags a repeat of an approved question; "No duplicate found" for an unrelated one | Pass on live |
+| Hide reasons | Hidden list shows the reason chosen when hiding | Pass on the local site; not separately re-checked on live |
 
 ## Tradeoffs and known gaps
 
@@ -100,7 +100,7 @@ members. The checklist covered every feature below, and all items passed.
 - **Admin role is set by the app owner.** There's no in-app way to promote a
   member to admin yet.
 - **The duplicate check costs a little money.** Each click is one small call to
-  Claude Haiku, billed to the app owner's account. A test call cost $0.0000044.
+  Claude Haiku, billed to the app owner's account.
   It runs only when the admin clicks, so the cost stays small and predictable.
 - **The duplicate check is a suggestion.** The model can miss a match or flag a
   question that is only close, so the host always decides. Questions that
@@ -112,7 +112,7 @@ members. The checklist covered every feature below, and all items passed.
 - **No merge.** When a duplicate is hidden, its votes don't move to the
   original question.
 - **Any signed-in member can trigger the host email.** Each new question costs
-  the owner about $0.013, and there's no rate limit yet. A daily digest or a
+  the owner for each email, and there's no rate limit yet. A daily digest or a
   per-user limit would fix this.
 - **Restoring a hidden question doesn't email its author.** Only approval
   sends the author an email, so the author doesn't get repeat emails.

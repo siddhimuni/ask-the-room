@@ -1,6 +1,6 @@
 /**
  * Notification routes. Each one sends email through the platform's email
- * integration (`email/send`, about $0.013 per email).
+ * integration (`email/send`).
  *
  * Billing: integrations default to developer billing, so the app owner's token
  * (APP_OWNER_JWT) pays for each email.
