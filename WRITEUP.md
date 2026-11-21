@@ -83,14 +83,15 @@ I used Claude Code. I directed the work and checked each step:
   persistence, and the duplicate check, run by hand on the live site with four
   people on separate accounts. All passed.
 - **Email:** both emails arrived on the live site.
-- **Local checks** for the Claude duplicate check and hide reasons: pass.
+- **Claude duplicate check:** passes on the live site.
+- **Hide reasons:** pass on the local site.
 
 ## What is not verified or left out
 
 - **Three multi-user Playwright tests are skipped.** They need two test accounts.
   The manual checklist covers the same behavior.
-- **Live re-test pending** for the Claude duplicate check and the hide reasons
-  after the latest deploy.
+- **Hide reasons were not re-checked on the live site** after the latest deploy.
+  They passed locally.
 - **The AI duplicate check was tested on a handful of questions,** not measured
   for accuracy.
 - **Known gaps:** deleting a question leaves its votes behind. Votes aren't
